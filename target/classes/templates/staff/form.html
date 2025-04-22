@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::title}, ~{::section})}">
+
+<head>
+    <title th:text="${staff.id == null ? 'Thêm mới nhân viên' : 'Cập nhật thông tin nhân viên'}">Quản lý nhân viên
+    </title>
+</head>
+
+<body>
+    <section>
+        <div class="card">
+            <div class="card-header">
+                <h2 th:text="${staff.id == null ? 'Thêm mới nhân viên' : 'Cập nhật thông tin nhân viên'}"></h2>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/staff/save}" th:object="${staff}" method="post" id="staffForm" novalidate>
+                    <input type="hidden" th:field="*{id}">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="code">Mã nhân viên</label>
+                            <input type="text" class="form-control" th:field="*{staffCode}" id="code" required
+                                maxlength="15" pattern="^[^\s]{1,15}$" title="Mã nhân viên"
+                                placeholder="Nhập mã nhân viên">
+                            <div class="invalid-feedback">
+                                Mã nhân viên không được để trống, chứa khoảng trắng và phải nhỏ hơn 15 ký tự
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="name">Tên nhân viên</label>
+                            <input type="text" class="form-control" th:field="*{name}" id="name" required
+                                maxlength="100" title="Tên nhân viên" placeholder="Nhập tên nhân viên">
+                            <div class="invalid-feedback">
+                                Tên nhân viên không được để trống và phải nhỏ hơn 100 ký tự
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="accountFpt">Email FPT</label>
+                            <input type="email" class="form-control" th:field="*{accountFpt}" id="accountFpt" required
+                                maxlength="100" pattern="^[a-zA-Z0-9._%+-]+@fpt\.edu\.vn$" title="Email FPT"
+                                placeholder="Nhập email FPT">
+                            <div class="invalid-feedback">
+                                Email FPT phải có định dạng hợp lệ, kết thúc bằng @fpt.edu.vn, không chứa khoảng trắng
+                                và dấu
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="accountFe">Email FE</label>
+                            <input type="email" class="form-control" th:field="*{accountFe}" id="accountFe" required
+                                maxlength="100" pattern="^[a-zA-Z0-9._%+-]+@fe\.edu\.vn$" title="Email FE"
+                                placeholder="Nhập email FE">
+                            <div class="invalid-feedback">
+                                Email FE phải có định dạng hợp lệ, kết thúc bằng @fe.edu.vn, không chứa khoảng trắng và
+                                dấu
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="status">Trạng thái</label>
+                            <select class="form-select" th:field="*{status}" id="status" required title="Trạng thái">
+                                <option value="0">Đang hoạt động</option>
+                                <option value="1">Ngừng hoạt động</option>
+                            </select>
+                            <div class="invalid-feedback">
+                                Vui lòng chọn trạng thái
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <a href="/staff" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Quay lại
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Lưu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+            .required:after {
+                content: " *";
+                color: red;
+            }
+        </style>
+
+        <script>
+            // Form validation
+            (function () {
+                'use strict'
+                var form = document.getElementById('staffForm')
+
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                })
+
+                // Custom validation for email domains
+                document.getElementById('accountFpt').addEventListener('input', function (e) {
+                    if (!this.value.endsWith('@fpt.edu.vn')) {
+                        this.setCustomValidity('Email phải kết thúc bằng @fpt.edu.vn')
+                    } else {
+                        this.setCustomValidity('')
+                    }
+                })
+
+                document.getElementById('accountFe').addEventListener('input', function (e) {
+                    if (!this.value.endsWith('@fe.edu.vn')) {
+                        this.setCustomValidity('Email phải kết thúc bằng @fe.edu.vn')
+                    } else {
+                        this.setCustomValidity('')
+                    }
+                })
+            })()
+        </script>
+    </section>
+</body>
+
+</html>

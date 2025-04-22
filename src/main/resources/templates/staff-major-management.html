@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--    <meta name="_csrf" th:content="${_csrf.token}" />-->
+    <!--    <meta name="_csrf_header" th:content="${_csrf.headerName}" />-->
+    <title>Quản lý bộ môn / chuyên ngành</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        .info-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            width: 120px;
+            font-weight: bold;
+        }
+
+        .info-value {
+            flex: 1;
+        }
+
+        .table th {
+            background-color: #f8f9fa;
+        }
+
+        .note {
+            color: #dc3545;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .select2-container--default .select2-selection--single {
+            height: 38px;
+            padding: 5px;
+            border: 1px solid #ced4da;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+
+        .btn-action {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-content {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .disabled-option {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-4">
+        <h2 class="mb-4">Quản lý bộ môn / chuyên ngành</h2>
+
+        <!-- Thông tin nhân viên -->
+        <div class="info-section">
+            <h5 class="mb-3">
+                <i class="fas fa-user-circle"></i> Thông tin nhân viên
+            </h5>
+            <div class="info-row">
+                <div class="info-label">Mã nhân viên:</div>
+                <div class="info-value" th:text="${selectedStaff?.staffCode}">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Họ và tên:</div>
+                <div class="info-value" th:text="${selectedStaff?.name}">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email FPT:</div>
+                <div class="info-value" th:text="${selectedStaff?.accountFpt}">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email FE:</div>
+                <div class="info-value" th:text="${selectedStaff?.accountFe}">-</div>
+            </div>
+        </div>
+
+        <!-- Danh sách phân công -->
+        <div class="list-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Danh sách bộ môn, chuyên ngành theo cơ sở
+                </h5>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal">
+                    <i class="fas fa-plus"></i> Thêm bộ môn chuyên ngành
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center" style="width: 80px">STT</th>
+                            <th>Cơ sở</th>
+                            <th>Bộ môn</th>
+                            <th>Chuyên ngành</th>
+                            <th class="text-center" style="width: 100px">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentsList">
+                        <tr th:if="${selectedStaff == null}">
+                            <td colspan="5" class="text-center">Chọn nhân viên để xem danh sách phân công</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="note">
+                <i class="fas fa-info-circle"></i> Chú ý: Nhân viên chỉ có một bộ môn và một chuyên ngành trong một cơ
+                sở
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm phân công -->
+    <div class="modal fade" id="assignModal" tabindex="-1" aria-labelledby="assignModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignModalLabel">
+                        <i class="fas fa-plus-circle"></i> Thêm bộ môn chuyên ngành
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignmentForm" class="needs-validation" novalidate>
+                        <div class="form-group mb-3">
+                            <label for="facilitySelect" class="form-label">Cơ sở:</label>
+                            <select class="form-control select2" id="facilitySelect" required>
+                                <option value="">Chọn cơ sở</option>
+                                <option th:each="facility : ${facilities}" th:value="${facility.id}"
+                                    th:text="${facility.name}">
+                                </option>
+                            </select>
+                            <div class="invalid-feedback">Vui lòng chọn cơ sở</div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="subjectSelect" class="form-label">Bộ môn:</label>
+                            <select class="form-control select2" id="subjectSelect" disabled required>
+                                <option value="">Chọn bộ môn</option>
+                                <option th:each="major : ${major}" th:value="${major.id}" th:text="${major.name}">
+                                </option>
+                            </select>
+                            <div class="invalid-feedback">Vui lòng chọn bộ môn</div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="majorSelect" class="form-label">Chuyên ngành:</label>
+                            <select class="form-control select2" id="majorSelect" disabled required>
+                                <option value="">Chọn chuyên ngành</option>
+                                <option th:each="department : ${department}" th:value="${department.id}"
+                                    th:text="${department.name}">
+                                </option>
+                            </select>
+                            <div class="invalid-feedback">Vui lòng chọn chuyên ngành</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Đóng
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveAssignment" disabled>
+                        <i class="fas fa-save"></i> Lưu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary mb-2" role="status">
+                <span class="visually-hidden">Đang xử lý...</span>
+            </div>
+            <p class="mb-0">Đang xử lý yêu cầu...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://kit.fontawesome.com/2c36e9b7b1.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script th:inline="javascript">
+        $(document).ready(function () {
+            const selectedStaffId = /*[[${selectedStaff?.id}]]*/ null;
+            const csrfToken = $("meta[name='_csrf']").attr("content");
+            const csrfHeader = $("meta[name='_csrf_header']").attr("content");
+            let isLoading = false;
+            let existingAssignments = [];
+
+            // Hàm kiểm tra xem cơ sở đã được phân công chưa
+            function isFacilityAssigned(facilityId) {
+                return existingAssignments.some(assignment =>
+                    assignment.majorFacility.departmentFacility.facility.id === facilityId
+                );
+            }
+
+            // Hàm hiển thị loading
+            function showLoading() {
+                if (!isLoading) {
+                    isLoading = true;
+                    $('#loadingOverlay').css('display', 'flex').fadeIn(200);
+                }
+            }
+
+            // Hàm ẩn loading
+            function hideLoading() {
+                if (isLoading) {
+                    isLoading = false;
+                    $('#loadingOverlay').fadeOut(200);
+                }
+            }
+
+            // Cấu hình AJAX mặc định
+            $.ajaxSetup({
+                beforeSend: function (xhr) {
+                    if (csrfHeader && csrfToken) {
+                        xhr.setRequestHeader(csrfHeader, csrfToken);
+                    }
+                }
+            });
+
+            // Khởi tạo Select2
+            $('#facilitySelect, #departmentSelect, #subjectSelect, #majorSelect').select2({
+                width: '100%',
+                dropdownParent: $('#assignModal'),
+                placeholder: 'Chọn...',
+                allowClear: true
+            });
+
+            // Load dữ liệu ban đầu
+            if (selectedStaffId) {
+                loadStaffAssignments(selectedStaffId);
+            }
+
+            // Hàm load danh sách phân công
+            function loadStaffAssignments(staffId) {
+                showLoading();
+                $.ajax({
+                    url: `/staff-major-management/staff-assignments/${staffId}`,
+                    method: 'GET',
+                    success: function (assignments) {
+                        existingAssignments = assignments; // Lưu danh sách phân công hiện tại
+                        $('#assignmentsList').empty();
+                        if (assignments.length === 0) {
+                            $('#assignmentsList').append(`
+                                <tr>
+                                    <td colspan="5" class="text-center">Chưa có phân công nào</td>
+                                </tr>
+                            `);
+                            return;
+                        }
+
+                        assignments.forEach((assignment, index) => {
+                            const row = `
+                                <tr>
+                                    <td class="text-center">${index + 1}</td>
+                                    <td>${assignment.majorFacility.departmentFacility.facility.name}</td>
+                                    <td>${assignment.majorFacility.departmentFacility.department.name}</td>
+                                    <td>${assignment.majorFacility.major.name}</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-danger btn-sm delete-assignment" 
+                                                data-id="${assignment.id}"
+                                                title="Xóa phân công">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                            $('#assignmentsList').append(row);
+                        });
+
+                        // Cập nhật trạng thái các option trong facilitySelect
+                        updateFacilitySelectOptions();
+                    },
+                    error: function (xhr) {
+                        showError('Không thể tải danh sách phân công', xhr.responseText);
+                    },
+                    complete: function () {
+                        hideLoading();
+                    }
+                });
+            }
+
+            // Hàm cập nhật trạng thái các option trong facilitySelect
+            function updateFacilitySelectOptions() {
+                $('#facilitySelect option').each(function () {
+                    const facilityId = $(this).val();
+                    if (facilityId && isFacilityAssigned(facilityId)) {
+                        $(this).addClass('disabled-option').prop('disabled', true);
+                    } else {
+                        $(this).removeClass('disabled-option').prop('disabled', false);
+                    }
+                });
+                $('#facilitySelect').trigger('change.select2');
+            }
+
+            // Xử lý thay đổi cơ sở
+            $('#facilitySelect').change(function () {
+                const facilityId = $(this).val();
+                const subjectSelect = $('#subjectSelect');
+                const majorSelect = $('#majorSelect');
+
+                if (facilityId) {
+                    // Kiểm tra xem cơ sở đã được phân công chưa
+                    if (isFacilityAssigned(facilityId)) {
+                        showError('Không thể phân công', 'Cơ sở này đã được phân công. Mỗi cơ sở chỉ được phân công một chuyên ngành.');
+                        $(this).val('').trigger('change');
+                        return;
+                    }
+                    loadSubjects(facilityId);
+                } else {
+                    subjectSelect.prop('disabled', true).empty().append('<option value="">Chọn bộ môn</option>');
+                }
+                majorSelect.prop('disabled', true).empty().append('<option value="">Chọn chuyên ngành</option>');
+                updateSaveButton();
+            });
+
+            // Xử lý thay đổi bộ môn
+            $('#subjectSelect').change(function () {
+                const subjectId = $(this).val();
+                const majorSelect = $('#majorSelect');
+
+                if (subjectId) {
+                    loadMajors(subjectId);
+                } else {
+                    majorSelect.prop('disabled', true).empty().append('<option value="">Chọn chuyên ngành</option>');
+                }
+                updateSaveButton();
+            });
+
+            // Xử lý thay đổi chuyên ngành
+            $('#majorSelect').change(function () {
+                updateSaveButton();
+            });
+
+            // Hàm load danh sách bộ môn
+            function loadSubjects(facilityId) {
+                showLoading();
+                $.ajax({
+                    url: `/staff-major-management/departments/${facilityId}`,
+                    method: 'GET',
+                    success: function (departments) {
+                        $('#subjectSelect')
+                            .prop('disabled', false)
+                            .empty()
+                            .append('<option value="">Chọn bộ môn</option>');
+
+                        departments.forEach(department => {
+                            $('#subjectSelect').append(
+                                $('<option></option>')
+                                    .val(department.id)
+                                    .text(department.name)
+                            );
+                        });
+
+                        $('#subjectSelect').trigger('change');
+                    },
+                    error: function (xhr) {
+                        showError('Không thể tải danh sách bộ môn', xhr.responseText);
+                    },
+                    complete: function () {
+                        hideLoading();
+                    }
+                });
+            }
+
+            // Hàm load danh sách chuyên ngành
+            function loadMajors(departmentId) {
+                showLoading();
+                const facilityId = $('#facilitySelect').val();
+                if (!facilityId || !departmentId) {
+                    return;
+                }
+
+                $.ajax({
+                    url: `/staff-major-management/majors/${departmentId}/${facilityId}`,
+                    method: 'GET',
+                    success: function (majorFacilities) {
+                        $('#majorSelect')
+                            .prop('disabled', false)
+                            .empty()
+                            .append('<option value="">Chọn chuyên ngành</option>');
+
+                        majorFacilities.forEach(majorFacility => {
+                            $('#majorSelect').append(
+                                $('<option></option>')
+                                    .val(majorFacility.id)
+                                    .text(majorFacility.major ? majorFacility.major.name : 'Unknown')
+                            );
+                        });
+
+                        $('#majorSelect').trigger('change');
+                    },
+                    error: function (xhr) {
+                        console.error('Error loading majors:', xhr);
+                        showError('Không thể tải danh sách chuyên ngành', xhr.responseText);
+                    },
+                    complete: function () {
+                        hideLoading();
+                    }
+                });
+            }
+
+            // Xử lý lưu phân công
+            $('#saveAssignment').click(function () {
+                const facilityId = $('#facilitySelect').val();
+                const majorFacilityId = $('#majorSelect').val();
+
+                if (!facilityId || !majorFacilityId) {
+                    showError('Thiếu thông tin', 'Vui lòng chọn đầy đủ thông tin cơ sở và chuyên ngành');
+                    return;
+                }
+
+                // Kiểm tra lại lần nữa trước khi lưu
+                if (isFacilityAssigned(facilityId)) {
+                    showError('Không thể phân công', 'Cơ sở này đã được phân công. Mỗi cơ sở chỉ được phân công một chuyên ngành.');
+                    return;
+                }
+
+                showLoading();
+                $.ajax({
+                    url: '/staff-major-management/assign',
+                    method: 'POST',
+                    data: {
+                        staffId: selectedStaffId,
+                        majorFacilityId: majorFacilityId
+                    },
+                    success: function (response) {
+                        $('#assignModal').modal('hide');
+                        showSuccess('Phân công thành công');
+                        loadStaffAssignments(selectedStaffId);
+                        resetForm();
+                    },
+                    error: function (xhr) {
+                        console.error('Error:', xhr);
+                        showError('Không thể tạo phân công', xhr.responseText);
+                    },
+                    complete: function () {
+                        hideLoading();
+                    }
+                });
+            });
+
+            // Xử lý xóa phân công
+            $(document).on('click', '.delete-assignment', function () {
+                const id = $(this).data('id');
+
+                Swal.fire({
+                    title: 'Xác nhận xóa',
+                    text: 'Bạn có chắc chắn muốn xóa phân công này?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Xóa',
+                    cancelButtonText: 'Hủy'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        showLoading();
+                        $.ajax({
+                            url: `/staff-major-management/${id}`,
+                            method: 'DELETE',
+                            success: function () {
+                                showSuccess('Xóa phân công thành công');
+                                loadStaffAssignments(selectedStaffId);
+                            },
+                            error: function (xhr) {
+                                showError('Không thể xóa phân công', xhr.responseText);
+                            },
+                            complete: function () {
+                                hideLoading();
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Reset các select phụ thuộc
+            function resetDependentSelects(from) {
+                if (from === 'department' || from === 'subject') {
+                    $('#departmentSelect')
+                        .prop('disabled', !$('#facilitySelect').val())
+                        .empty()
+                        .append('<option value="">Chọn khoa</option>')
+                        .trigger('change');
+                }
+
+                if (from === 'subject') {
+                    $('#subjectSelect')
+                        .prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Chọn bộ môn</option>')
+                        .trigger('change');
+                }
+
+                if (from === 'major') {
+                    $('#majorSelect')
+                        .prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Chọn chuyên ngành</option>')
+                        .trigger('change');
+                }
+
+                updateSaveButton();
+            }
+
+            // Reset form
+            function resetForm() {
+                $('#assignmentForm')[0].reset();
+                resetDependentSelects('department');
+                $('#facilitySelect').val('').trigger('change');
+            }
+
+            // Cập nhật trạng thái nút Lưu
+            function updateSaveButton() {
+                const isValid = $('#facilitySelect').val() &&
+                    $('#subjectSelect').val() &&
+                    $('#majorSelect').val();
+                $('#saveAssignment').prop('disabled', !isValid);
+            }
+
+            // Hiển thị thông báo thành công
+            function showSuccess(message) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công',
+                    text: message,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+
+            // Hiển thị thông báo lỗi
+            function showError(title, message) {
+                Swal.fire({
+                    icon: 'error',
+                    title: title,
+                    text: message || 'Đã có lỗi xảy ra',
+                    confirmButtonText: 'Đóng'
+                });
+            }
+
+            // Reset form khi đóng modal
+            $('#assignModal').on('hidden.bs.modal', function () {
+                resetForm();
+            });
+
+            // Xử lý khi người dùng rời trang
+            $(window).on('beforeunload', function () {
+                if (isLoading) {
+                    return 'Đang xử lý yêu cầu. Bạn có chắc chắn muốn rời đi?';
+                }
+            });
+
+            // Mở modal
+            $('#assignModal').on('show.bs.modal', function () {
+                updateFacilitySelectOptions();
+            });
+        });
+    </script>
+</body>
+
+</html>

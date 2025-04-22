@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::title}, ~{::section})}">
+
+<head>
+    <title>Quản lý nhân viên</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <section>
+        <h2 class="mb-4">Quản lý nhân viên</h2>
+
+        <!-- Alert Messages -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <!-- Filter section -->
+        <div class="filter-section mb-4">
+            <form id="searchForm" method="get" action="/staff" class="d-flex align-items-center">
+                <input type="hidden" name="page" value="0">
+                <input type="hidden" name="size" th:value="${pageSize}">
+
+                <div class="flex-grow-1">
+                    <input type="text" class="form-control" name="keyword" th:value="${keyword}"
+                        placeholder="Nhập từ khóa tìm kiếm (mã giảng viên / tên giảng viên / email)">
+                </div>
+                <div class="ms-3">
+                    <select class="form-select" name="status" title="Chọn trạng thái" onchange="this.form.submit()">
+                        <option value="">--Chọn trạng thái--</option>
+                        <option value="1" th:selected="${status == 1}">Đang hoạt động</option>
+                        <option value="0" th:selected="${status == 0}">Ngừng hoạt động</option>
+                    </select>
+                </div>
+                <div class="ms-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Tìm kiếm
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Table section -->
+        <div class="table-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Danh sách nhân viên</h5>
+                <div>
+                    <button id="importBtn" class="btn btn-primary btn-sm me-2" title="Import nhân viên">
+                        <i class="fas fa-file-import"></i> Import nhân viên
+                    </button>
+                    <a href="/staff/download-template" class="btn btn-secondary btn-sm me-2" title="Download Template">
+                        <i class="fas fa-download"></i> Download Template
+                    </a>
+                    <a href="/staff/add" class="btn btn-success btn-sm" title="Thêm nhân viên">
+                        <i class="fas fa-plus"></i> Thêm nhân viên
+                    </a>
+                    <button class="btn btn-info btn-sm ms-2" title="Xem lịch sử import">
+                        <i class="fas fa-history"></i> Xem lịch sử import
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Mã nhân viên</th>
+                            <th>Tên nhân viên</th>
+                            <th>Email FPT</th>
+                            <th>Email FE</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="staff, stat : ${staffs}">
+                            <td th:text="${stat.count + currentPage * pageSize}"></td>
+                            <td th:text="${staff.staffCode}"></td>
+                            <td th:text="${staff.name}"></td>
+                            <td th:text="${staff.accountFpt}"></td>
+                            <td th:text="${staff.accountFe}"></td>
+                            <td>
+                                <span th:if="${staff.status == 1}" class="badge bg-success">Đang hoạt động</span>
+                                <span th:if="${staff.status == 0}" class="badge bg-danger">Ngừng hoạt động</span>
+                            </td>
+                            <td>
+                                <a th:href="@{/staff/edit/{id}(id=${staff.id})}" class="btn btn-warning btn-action"
+                                    title="Sửa">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a th:href="@{/staff/toggle-status/{id}(id=${staff.id})}"
+                                    class="btn btn-secondary btn-action"
+                                    th:title="${staff.status == 0 ? 'Vô hiệu hóa' : 'Kích hoạt'}"
+                                    onclick="return confirm('Bạn có chắc chắn muốn thay đổi trạng thái nhân viên này?')">
+                                    <i class="fas fa-power-off"></i>
+                                </a>
+                                <a th:href="@{/staff-major-management(staffId=${staff.id})}"
+                                    class="btn btn-info btn-action" title="Xem bộ môn chuyên ngành">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(staffs)}">
+                            <td colspan="7" class="text-center">Không có dữ liệu</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex align-items-center">
+                    <span class="me-2">Hiển thị:</span>
+                    <select class="form-select form-select-sm" style="width: auto;" title="Chọn số bản ghi hiển thị"
+                        onchange="changePageSize(this.value)">
+                        <option value="5" th:selected="${pageSize == 5}">5 bản ghi</option>
+                    </select>
+                    <span class="ms-2" th:text="|Tổng số: ${totalItems} bản ghi|"></span>
+                </div>
+
+                <nav th:if="${totalPages > 1}">
+                    <ul class="pagination justify-content-end mb-0">
+                        <li class="page-item" th:classappend="${currentPage == 0 ? 'disabled' : ''}">
+                            <a class="page-link"
+                                th:href="@{/staff(page=0,size=${pageSize},keyword=${keyword},status=${status})}">&laquo;</a>
+                        </li>
+                        <li class="page-item" th:classappend="${currentPage == 0 ? 'disabled' : ''}">
+                            <a class="page-link"
+                                th:href="@{/staff(page=${currentPage - 1},size=${pageSize},keyword=${keyword},status=${status})}">Trước</a>
+                        </li>
+
+                        <li class="page-item" th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+                            th:classappend="${currentPage == i ? 'active' : ''}"
+                            th:if="${i >= currentPage - 2 and i <= currentPage + 2}">
+                            <a class="page-link"
+                                th:href="@{/staff(page=${i},size=${pageSize},keyword=${keyword},status=${status})}"
+                                th:text="${i + 1}"></a>
+                        </li>
+
+                        <li class="page-item" th:classappend="${currentPage == totalPages - 1 ? 'disabled' : ''}">
+                            <a class="page-link"
+                                th:href="@{/staff(page=${currentPage + 1},size=${pageSize},keyword=${keyword},status=${status})}">Sau</a>
+                        </li>
+                        <li class="page-item" th:classappend="${currentPage == totalPages - 1 ? 'disabled' : ''}">
+                            <a class="page-link"
+                                th:href="@{/staff(page=${totalPages - 1},size=${pageSize},keyword=${keyword},status=${status})}">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Download Modal -->
+        <div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="downloadModalLabel">Chọn nhân viên để tải xuống</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAllModal" title="Chọn tất cả">
+                                        </th>
+                                        <th>Mã nhân viên</th>
+                                        <th>Tên nhân viên</th>
+                                        <th>Email FPT</th>
+                                        <th>Email FE</th>
+                                        <th>Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="staff : ${staffs}">
+                                        <td>
+                                            <input type="checkbox" class="staff-checkbox" th:value="${staff.id}"
+                                                th:data-staff-code="${staff.staffCode}" th:data-name="${staff.name}"
+                                                th:data-account-fpt="${staff.accountFpt}"
+                                                th:data-account-fe="${staff.accountFe}"
+                                                th:data-status="${staff.status}">
+                                        </td>
+                                        <td th:text="${staff.staffCode}"></td>
+                                        <td th:text="${staff.name}"></td>
+                                        <td th:text="${staff.accountFpt}"></td>
+                                        <td th:text="${staff.accountFe}"></td>
+                                        <td>
+                                            <span th:if="${staff.status == 0}" class="badge bg-success">Đang hoạt
+                                                động</span>
+                                            <span th:if="${staff.status == 1}" class="badge bg-danger">Ngừng hoạt
+                                                động</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                        <button type="button" class="btn btn-primary" id="downloadSelectedBtn">Tải xuống</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden form for download -->
+        <form id="downloadForm" method="post" action="/staff/download-template" style="display: none;">
+            <input type="hidden" name="selectedStaffData" id="selectedStaffData">
+        </form>
+
+        <!-- Import Modal -->
+        <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importModalLabel">Import nhân viên</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="importForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="excelFile" class="form-label">Chọn file Excel</label>
+                                <input type="file" class="form-control" id="excelFile" name="file" accept=".xlsx,.xls"
+                                    required>
+                            </div>
+                            <div class="text-muted small">
+                                <p class="mb-1">Lưu ý:</p>
+                                <ul class="ps-3">
+                                    <li>Chỉ chấp nhận file Excel (.xlsx, .xls)</li>
+                                    <li>Vui lòng sử dụng đúng template đã cung cấp</li>
+                                    <li>Dữ liệu phải đúng định dạng theo hướng dẫn</li>
+                                    <li>Email FPT phải chứa mã nhân viên và kết thúc bằng @fpt.edu.vn</li>
+                                    <li>Email FE phải chứa mã nhân viên và kết thúc bằng @fe.edu.vn</li>
+                                    <li>Bộ môn chuyên ngành phải được liên kết đúng với nhân viên</li>
+                                </ul>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                        <button type="button" class="btn btn-primary" id="submitImport">Import</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            // Gắn sự kiện cho nút download template
+            const downloadBtn = document.getElementById('downloadTemplateBtn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function () {
+                    const downloadModal = new bootstrap.Modal(document.getElementById('downloadModal'));
+                    downloadModal.show();
+                });
+            }
+
+            // Xử lý chọn tất cả trong modal
+            const selectAllCheckbox = document.getElementById('selectAllModal');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function () {
+                    const checkboxes = document.querySelectorAll('#downloadModal .staff-checkbox');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+            }
+
+            // Gắn sự kiện cho nút tải xuống trong modal
+            const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+            if (downloadSelectedBtn) {
+                downloadSelectedBtn.addEventListener('click', function () {
+                    const selectedStaff = Array.from(document.querySelectorAll('#downloadModal .staff-checkbox:checked')).map(checkbox => ({
+                        id: checkbox.value,
+                        staffCode: checkbox.getAttribute('data-staff-code'),
+                        name: checkbox.getAttribute('data-name'),
+                        accountFpt: checkbox.getAttribute('data-account-fpt'),
+                        accountFe: checkbox.getAttribute('data-account-fe'),
+                        status: parseInt(checkbox.getAttribute('data-status'))
+                    }));
+
+                    if (selectedStaff.length === 0) {
+                        alert('Vui lòng chọn ít nhất một nhân viên để tải xuống');
+                        return;
+                    }
+
+                    // Cập nhật giá trị cho form ẩn
+                    document.getElementById('selectedStaffData').value = JSON.stringify(selectedStaff);
+
+                    // Submit form
+                    document.getElementById('downloadForm').submit();
+
+                    // Đóng modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('downloadModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                });
+            }
+
+            // Các hàm xử lý khác
+            function changePageSize(size) {
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set('size', size);
+                searchParams.set('page', '0');
+                window.location.search = searchParams.toString();
+            }
+
+            // Xử lý form tìm kiếm
+            document.getElementById('searchForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const keyword = this.querySelector('input[name="keyword"]').value.trim();
+                const status = this.querySelector('select[name="status"]').value;
+                const size = this.querySelector('input[name="size"]').value;
+
+                const searchParams = new URLSearchParams();
+                searchParams.set('page', '0');
+                searchParams.set('size', size);
+                if (keyword) searchParams.set('keyword', keyword);
+                if (status) searchParams.set('status', status);
+
+                window.location.search = searchParams.toString();
+            });
+
+            // Khởi tạo modal
+            const importModal = new bootstrap.Modal(document.getElementById('importModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+
+            // Xử lý nút import
+            const importBtn = document.getElementById('importBtn');
+            if (importBtn) {
+                importBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    importModal.show();
+                });
+            }
+
+            // Xử lý submit import
+            const submitImportBtn = document.getElementById('submitImport');
+            if (submitImportBtn) {
+                submitImportBtn.addEventListener('click', function () {
+                    const formData = new FormData();
+                    const fileInput = document.getElementById('excelFile');
+
+                    if (!fileInput.files[0]) {
+                        alert('Vui lòng chọn file để import');
+                        return;
+                    }
+
+                    formData.append('file', fileInput.files[0]);
+
+                    // Disable nút submit và hiển thị loading
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang xử lý...';
+
+                    fetch('/staff/import', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Import thành công!\n' + data.message);
+                                window.location.reload();
+                            } else {
+                                let errorMessage = 'Import thất bại!\n';
+                                if (data.errors && data.errors.length > 0) {
+                                    errorMessage += data.errors.join('\n');
+                                } else {
+                                    errorMessage += data.message;
+                                }
+                                alert(errorMessage);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Có lỗi xảy ra khi import dữ liệu');
+                        })
+                        .finally(() => {
+                            // Reset form và nút submit
+                            document.getElementById('importForm').reset();
+                            this.disabled = false;
+                            this.innerHTML = 'Import';
+                            importModal.hide();
+                        });
+                });
+            }
+
+            // Xử lý nút đóng modal
+            const closeButtons = document.querySelectorAll('[data-bs-dismiss="modal"]');
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    importModal.hide();
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
